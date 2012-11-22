@@ -1,0 +1,41 @@
+Coding conventions
+==================
+
+1. Naming everything
+
+One should name functions and variables according to the following 
+simple pattern.
+
+1) Variables' names should be all lowercase, underscores and digits
+are allowed (Matlab will prevent you from starting a variable name
+from the underscore or a digit)
+
+Good names:                         Bad names:
+
+signal_model                        SignalModel, signalModel, SIGNAL_MODEL,
+errors_by_params                    etc.
+beta_index
+
+
+2) Constants' names should be all uppercase with underscores:
+
+Good names:                         Bad names:
+
+MIN_BETA                            minBeta, min_beta, MinBeta
+MC_ITERATIONS                       etc.
+
+Note that names for variables and constants should be as descriptive 
+as possible, e.g. 'noise_cov_matrix' not 'ncm' or 'sigma'.
+There are no sigmas - there is a noise covariance matrix.
+
+
+2) Functions' names should be named the same. Note that while function
+name might not be as descriptive as a variable name, it should have 
+a complete description of its meaning and operation in the source code. 
+For example, the name might be 'fuzzyred', which is a little bit vague 
+at the beginning, but the description should be such that a reader
+should be able to understand most of the details concerning how it works.
+Abbreviated names are allowed provided that their meaning is later 
+determined.
+
+
