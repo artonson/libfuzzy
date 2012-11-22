@@ -1,8 +1,8 @@
 % MC_FOS_QUALITY - Monte-Carlo simulation to determine quality of
 % first order sensor.
 
-MC_ITERATIONS =  100;
-DIMENSIONS    = 100;
+MC_ITERATIONS =  1000;
+DIMENSIONS    = 4;
 
 MIN_ALPHA    = -3;
 MAX_ALPHA    = +3;
@@ -29,10 +29,10 @@ NOISE_VARIANCE = 10.0;
 noise_expectation = zeros(DIMENSIONS, 1);
 noise_cov_matrix = NOISE_VARIANCE * eye(DIMENSIONS);
 probabilistic_noise_model = probabilistic_model(noise_expectation, noise_cov_matrix);
-%fuzzy_noise_model = coordinated_fuzzy_model(probabilistic_noise_model);
+fuzzy_noise_model = coordinated_fuzzy_model(probabilistic_noise_model);
 
 errors_by_params_probability = zeros(ALPHA_VALUES, BETA_VALUES);
-% errors_by_params_fuzzy = zeros(ALPHA_VALUES, BETA_VALUES);
+errors_by_params_fuzzy = zeros(ALPHA_VALUES, BETA_VALUES);
 
 ideal_operator = projection_operator(signal_expectation) ./ DIMENSIONS;
 
@@ -42,25 +42,40 @@ for alpha_index = 1:length(alphas)
         beta = betas(beta_index);
         operator = first_order_sensor(alpha, beta, DIMENSIONS);
         for iteration = 1:MC_ITERATIONS
-            [probabilistic_measurement, signal_realization] = probabilistic_measure(operator, ...
-                probabilistic_signal_model, probabilistic_noise_model);
-            [estimate, error_estimate] = probabilistic_reduction(probabilistic_measurement, ...
-                operator, ideal_operator, probabilistic_signal_model, probabilistic_noise_model);
-            error = (norm(estimate - ideal_operator * signal_realization))^2 / DIMENSIONS;
-            errors_by_params_probability(alpha_index, beta_index) = ...
-                errors_by_params_probability(alpha_index, beta_index) + error;
-
-            fuzzy_measurement = fuzzy_measure(operator, fuzzy_signal_model, fuzzy_noise_model);
-%             [estimate, estimate_error] = fuzzy_reduction(measured, operator, );
-%             errors_by_params_fuzzy(alpha_index, beta_index) = ...
-%                 errors_by_params(alpha_index, beta_index) + estimate_error;
-
+%             [probabilistic_measurement, probabilistic_signal_realization] = ...
+%                 probabilistic_measure(operator, probabilistic_signal_model, probabilistic_noise_model);
+%             [estimate, error_estimate] = probabilistic_reduction(probabilistic_measurement, ...
+%                 operator, ideal_operator, probabilistic_signal_model, probabilistic_noise_model);
+%             error = (norm(estimate - ideal_operator * probabilistic_signal_realization))^2 / DIMENSIONS;
+%             errors_by_params_probability(alpha_index, beta_index) = ...
+%                 errors_by_params_probability(alpha_index, beta_index) + error;
+            tic;
+            [fuzzy_measurement, fuzzy_signal_realization] = ...
+                fuzzy_measure(operator, fuzzy_signal_model, fuzzy_noise_model);
+            [estimate, error_estimate] = fuzzy_reduction(fuzzy_measurement, operator, ...
+                ideal_operator, fuzzy_signal_model, fuzzy_noise_model);
+            error = (norm(estimate - ideal_operator * fuzzy_signal_realization))^2 / DIMENSIONS;
+            if isnan(error)
+                disp('est'); disp(estimate);
+                disp(fuzzy_signal_realization);
+                disp(fuzzy_measurement);
+            end
+            errors_by_params_fuzzy(alpha_index, beta_index) = ...
+                errors_by_params_fuzzy(alpha_index, beta_index) + error;
+            toc;
         end
     end
 end
-errors_by_params_probability = errors_by_params_probability / MC_ITERATIONS;
+% errors_by_params_probability = errors_by_params_probability / MC_ITERATIONS;
+errors_by_params_fuzzy = errors_by_params_fuzzy / MC_ITERATIONS;
 
-surfl(betas, alphas, errors_by_params_probability);
+% figure(1);
+% surfl(betas, alphas, errors_by_params_probability);
+% shading interp;
+% colormap(pink);
+
+figure(2);
+surfl(betas, alphas, errors_by_params_fuzzy);
 shading interp;
 colormap(pink);
 

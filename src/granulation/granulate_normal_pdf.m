@@ -8,6 +8,7 @@ if sharpness <= 1.0
         'sharpness parameter should be greater then 1.0')
 end
 
+total_probability = 0;
 for granule_index = 1:length(ordering)
     probability = sharpness ^ granule_index / (1 + sharpness) ^ granule_index;
     intervals = zeros(1, 2);
@@ -27,6 +28,12 @@ for granule_index = 1:length(ordering)
     end
     granules(granule_index).intervals = intervals;
     granules(granule_index).probability = probability;
+    total_probability = total_probability + probability;
+end
+
+% normalise
+for granule_index = 1:length(ordering)
+    granules(granule_index).probability = granules(granule_index).probability / total_probability;
 end
 
 end

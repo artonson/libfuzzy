@@ -1,4 +1,4 @@
-function measurement = fuzzy_measure(operator, signal_model, noise_model)
+function [measurement, signal] = fuzzy_measure(operator, signal_model, noise_model)
 %MEASURE_FUZZY Compute measurement for fuzzy model
 %   Detailed explanation goes here
 

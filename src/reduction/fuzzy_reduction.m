@@ -1,41 +1,48 @@
 function [estimate, error_estimate] = fuzzy_reduction(measurement, ...
-        operator, signal_model, noise_model)
+        operator, ideal_operator, signal_model, noise_model)
 %FUZZY_REDUCTION Summary of this function goes here
 %   Detailed explanation goes here
 
-B = Sigma^(-1/2) * operator * F^(1/2);
-y = Sigma^(-1/2) * (measurement - operator * myf0);
+args = {};
 
-exit_flat = 0;
-iterations = 0;
-MAX_ITERATIONS = 10;
-max_value = 2;
-while exit_flat ~= 1 && iterations <= MAX_ITERATIONS
-    [w, value, exit_flat] = fzero(@(w) fuzzy_reduction_helper(w,B,y), [0 max_value]);
-    iterations = iterations + 1;
+probabilistic_noise_model = noise_model.coordinated_probabilistic_model;
+probabilistic_signal_model = signal_model.coordinated_probabilistic_model;
+
+if isfield(probabilistic_noise_model, 'covariance')
+    args{1} = probabilistic_noise_model.covariance;
+    if isfield(probabilistic_signal_model, 'covariance')
+        args{2} = probabilistic_signal_model.covariance;
+        if isfield(probabilistic_signal_model, 'expectation')
+            args{3} = probabilistic_signal_model.expectation;
+        end
+    end
 end
 
+[estimate, error_estimate] = do_fuzzy_reduction(measurement, ...
+        operator, ideal_operator, args);
+    
+    function [estimate, error_estimate] = do_fuzzy_reduction(measurement, ...
+        operator, ideal_operator, args)
+    
+    numvarargs = length(args);
+    if numvarargs > 3
+        error('libfuzzy:probabilistic_reduction:too_many_inputs', ...
+            'requires at most 3 optional inputs')
+        
+    elseif numvarargs == 1
+        % Compute a more accurate estimate using the noise covariance matrix.
+        noise_covariance = args{1};
+        reduction_operator = ideal_operator * ...
+            pinv(operator' * inv(noise_covariance) * operator, 1e-5) *...
+            operator';
+        estimate = reduction_operator * measurement;
+        error_estimate = trace(operator' * inv(noise_covariance) * operator);
 
-
-
-
-R = F * operator' * inv(operator * F * operator' + w * Sigma);
-R_xi = f0 + R * (xi - operator * f0);
-h = trace(F - R * operator * F);
-
-    function f = fuzzy_reduction_helper(x, B, y)
-    b = B'*y;
-    A = B' * B + x * eye(size(B' * B));
-    z2 = A \ b;
-
-    n1 = norm(y - B*z2);
-    n2 = norm(z2);
-    f = n1 - n2;
-
-    % T = B * B';
-    % f = x * norm(     inv(T + x * eye(size(T))) \ * y) - ...
-    %         norm(B' * inv(T + x * eye(size(T))) * y);
-    % 
+    else 
+        % Compute basic least squares estimate.
+        estimate = pinv(operator) * measurement;
+        error_estimate = trace(operator' * operator);
+    end
 
     end
 

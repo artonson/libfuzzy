@@ -13,19 +13,23 @@ if sharpness <= 1.0
 end
 
 fuzzy_model.coordinated_probabilistic_model = probabilistic_model;
-%fuzzy_model.granules = struct([]);
 
-switch probabilistic_model.distribution
-    case 'normal'
-        for coordinate = 1:length(probabilistic_model.expectation)
-            expectation = probabilistic_model.expectation(coordinate);
-            variance = probabilistic_model.covariance(coordinate, coordinate);
-            fuzzy_model.coordinates(coordinate).granules = ...
-                granulate_normal_pdf(expectation, variance, ordering, sharpness);
-        end
-    otherwise
-        error('libfuzzy:coordinated_fuzzy_model:unknown_distribution', ...
-            'unknown distribution')
+if isfield(probabilistic_model, 'distribution')
+    switch probabilistic_model.distribution
+        case 'normal'
+            variances = diag(probabilistic_model.covariance);
+            for coordinate = 1:length(probabilistic_model.expectation)
+                expectation = probabilistic_model.expectation(coordinate);
+                variance = variances(coordinate);
+                fuzzy_model.coordinates(coordinate).granules = ...
+                    granulate_normal_pdf(expectation, variance, ordering, sharpness);
+            end
+        otherwise
+            error('libfuzzy:coordinated_fuzzy_model:unknown_distribution', ...
+                'unknown distribution')
+    end
+else
+    fuzzy_model.expectation = probabilistic_model.expectation;
 end
 
 end
