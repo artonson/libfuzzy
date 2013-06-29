@@ -36,9 +36,17 @@ end
     elseif numvarargs == 1
         % Compute a more accurate estimate using the noise covariance matrix.
         noise_covariance = args{1};
-        reduction_operator = ideal_operator * ...
-            pinv(operator' * inv(noise_covariance) * operator, 1e-5) *...
-            operator';
+        
+        tolerance = 1e-8;
+        [right_singular singular_values left_singular] = svd(operator' * inv(noise_covariance) * operator);
+        inverse_singular_values = diag(pinv(singular_values, tolerance));
+        max_inverse_value_index = floor(3.0 / 4.0 * length(inverse_singular_values));
+        max_inverse_value = inverse_singular_values(max_inverse_value_index);
+        truncated_singular_values = inverse_singular_values <= max_inverse_value;
+        singular_values = diag(truncated_singular_values .* inverse_singular_values);
+        truncated_operator_inverse = right_singular * singular_values * right_singular';
+        reduction_operator = ideal_operator * truncated_operator_inverse * operator';
+
         estimate = reduction_operator * measurement;
         error_estimate = trace(operator' * inv(noise_covariance) * operator);
 

@@ -1,16 +1,16 @@
 % MC_FOS_QUALITY - Monte-Carlo simulation to determine quality of
 % first order sensor.
 
-MC_ITERATIONS =  1000;
+MC_ITERATIONS = 1e5;
 DIMENSIONS    = 4;
 
-MIN_ALPHA    = -3;
-MAX_ALPHA    = +3;
-ALPHA_VALUES =  20;
+MIN_ALPHA    = -2;
+MAX_ALPHA    = +2;
+ALPHA_VALUES =  10;
 
-MIN_BETA     = -3;
-MAX_BETA     = +3;
-BETA_VALUES  =  20;
+MIN_BETA     = -2;
+MAX_BETA     = +2;
+BETA_VALUES  =  10;
 
 alphas = linspace(MIN_ALPHA, MAX_ALPHA, ALPHA_VALUES);
 betas = linspace(MIN_BETA, MAX_BETA, BETA_VALUES);
@@ -25,14 +25,14 @@ signal_expectation = ensure_column(sqrt(2) .* sin(pi .* (1 - y)./2));
 probabilistic_signal_model = probabilistic_model(signal_expectation);
 fuzzy_signal_model = coordinated_fuzzy_model(probabilistic_signal_model);
 
-NOISE_VARIANCE = 10.0;
+NOISE_STD = 10.0;
 noise_expectation = zeros(DIMENSIONS, 1);
-noise_cov_matrix = NOISE_VARIANCE * eye(DIMENSIONS);
+noise_cov_matrix = NOISE_STD * eye(DIMENSIONS);
 probabilistic_noise_model = probabilistic_model(noise_expectation, noise_cov_matrix);
 fuzzy_noise_model = coordinated_fuzzy_model(probabilistic_noise_model);
 
-errors_by_params_probability = zeros(ALPHA_VALUES, BETA_VALUES);
-errors_by_params_fuzzy = zeros(ALPHA_VALUES, BETA_VALUES);
+errors_by_params_probability = zeros(ALPHA_VALUES, BETA_VALUES, MC_ITERATIONS);
+errors_by_params_fuzzy = zeros(ALPHA_VALUES, BETA_VALUES, MC_ITERATIONS);
 
 ideal_operator = projection_operator(signal_expectation) ./ DIMENSIONS;
 
@@ -42,40 +42,33 @@ for alpha_index = 1:length(alphas)
         beta = betas(beta_index);
         operator = first_order_sensor(alpha, beta, DIMENSIONS);
         for iteration = 1:MC_ITERATIONS
-%             [probabilistic_measurement, probabilistic_signal_realization] = ...
-%                 probabilistic_measure(operator, probabilistic_signal_model, probabilistic_noise_model);
-%             [estimate, error_estimate] = probabilistic_reduction(probabilistic_measurement, ...
-%                 operator, ideal_operator, probabilistic_signal_model, probabilistic_noise_model);
-%             error = (norm(estimate - ideal_operator * probabilistic_signal_realization))^2 / DIMENSIONS;
-%             errors_by_params_probability(alpha_index, beta_index) = ...
-%                 errors_by_params_probability(alpha_index, beta_index) + error;
-            tic;
+            [probabilistic_measurement, probabilistic_signal_realization] = ...
+                probabilistic_measure(operator, probabilistic_signal_model, probabilistic_noise_model);
+            [estimate, error_estimate] = probabilistic_reduction(probabilistic_measurement, ...
+                operator, ideal_operator, probabilistic_signal_model, probabilistic_noise_model);
+            error = (norm(estimate - ideal_operator * probabilistic_signal_realization))^2 / DIMENSIONS;
+            errors_by_params_probability(alpha_index, beta_index, iteration) = error;
+            
             [fuzzy_measurement, fuzzy_signal_realization] = ...
                 fuzzy_measure(operator, fuzzy_signal_model, fuzzy_noise_model);
             [estimate, error_estimate] = fuzzy_reduction(fuzzy_measurement, operator, ...
                 ideal_operator, fuzzy_signal_model, fuzzy_noise_model);
             error = (norm(estimate - ideal_operator * fuzzy_signal_realization))^2 / DIMENSIONS;
-            if isnan(error)
-                disp('est'); disp(estimate);
-                disp(fuzzy_signal_realization);
-                disp(fuzzy_measurement);
-            end
-            errors_by_params_fuzzy(alpha_index, beta_index) = ...
-                errors_by_params_fuzzy(alpha_index, beta_index) + error;
-            toc;
+            errors_by_params_fuzzy(alpha_index, beta_index, iteration) = error;
         end
     end
 end
-% errors_by_params_probability = errors_by_params_probability / MC_ITERATIONS;
-errors_by_params_fuzzy = errors_by_params_fuzzy / MC_ITERATIONS;
 
-% figure(1);
-% surfl(betas, alphas, errors_by_params_probability);
-% shading interp;
-% colormap(pink);
+mean_errors_by_params_probability = mean(errors_by_params_probability, 3);
+mean_errors_by_params_fuzzy = mean(errors_by_params_fuzzy, 3);
+
+std_errors_by_params_probability = std(errors_by_params_probability, 1, 3);
+std_errors_by_params_fuzzy = std(errors_by_params_fuzzy, 1, 3);
+
+figure(1);
+surf(betas, alphas, mean_errors_by_params_probability);
+%colormap(gray);
 
 figure(2);
-surfl(betas, alphas, errors_by_params_fuzzy);
-shading interp;
-colormap(pink);
-
+surf(betas, alphas, mean_errors_by_params_fuzzy);
+%colormap(gray);
