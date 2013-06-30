@@ -1,10 +1,38 @@
 
+import sys
 import numpy as np
 
 __all__ = [
     "prepare_probabilities",
     "random_from_distribution"
 ]
+
+MAX_FLOAT = int(sys.float_info.max)
+
+# number is long int which can exceed MAX_FLOAT
+# multiplier is float
+# It is supposed that number * multiplier
+# is less than MAX_FLOAT (otherwise an exception
+# is raised)
+def smart_multiply(base, power, multiplier):
+    decompositions = []
+
+    number = base ** power
+    while number > MAX_FLOAT:
+        if 0 == power % 2:
+            decompositions.append(power / 2)
+            power /= 2
+            number = base ** power
+        else:
+            decompositions.append(1)
+            power -= 1
+            number = base ** power
+
+    result = number * multiplier
+    while decompositions:
+        result *= decompositions.pop()
+
+    return result
 
 def prepare_probabilities(ordering, number_of_variables):
     if number_of_variables <= 0:
@@ -19,24 +47,31 @@ def prepare_probabilities(ordering, number_of_variables):
     numerator = 1.
     for current_event in xrange(1, number_of_events):
         if current_event > 1:
-            numerator -= float(((current_event - 1) ** number_of_variables - \
-                (current_event - 2) ** number_of_variables)) * \
-                probabilities[current_event - 2]
-        denominator = current_event ** number_of_variables - \
-            (current_event - 1) ** number_of_variables
+            multiplier = float(probabilities[current_event - 2])
+            numerator -= (smart_multiply(current_event - 1, number_of_variables, multiplier) - \
+                smart_multiply(current_event - 2, number_of_variables, multiplier))
+        try:
+            denominator = float(current_event ** number_of_variables - \
+                (current_event - 1) ** number_of_variables)
+        except OverflowError:
+            probabilities[current_event - 1] = 0.
+        else:
+            lhs_value = numerator / (denominator + 1.)
+            rhs_value = numerator / denominator
 
-        lhs_value = float(numerator) / float(denominator + 1.)
-        rhs_value = float(numerator) / float(denominator)
-
-        probabilities[current_event - 1] = lhs_value + (rhs_value - lhs_value) / 2.
+            probabilities[current_event - 1] = lhs_value + (rhs_value - lhs_value) / 2.
 
     if number_of_events > 1:
-        numerator -= float(((number_of_events - 1) ** number_of_variables - \
-            (number_of_events - 2) ** number_of_variables)) * \
-            probabilities[number_of_events - 2]
-    denominator = number_of_events ** number_of_variables - \
-        (number_of_events - 1) ** number_of_variables
-    probabilities[-1] = float(numerator) / float(denominator)
+        multiplier = float(probabilities[current_event - 2])
+        numerator -= (smart_multiply(number_of_events - 1, number_of_variables, multiplier) - \
+            smart_multiply(number_of_events - 2, number_of_variables, multiplier))
+    try:
+        denominator = float(number_of_events ** number_of_variables - \
+            (number_of_events - 1) ** number_of_variables)
+    except OverflowError:
+        probabilities[-1] = 0.
+    else:
+        probabilities[-1] = numerator / denominator
 
     return probabilities
 
