@@ -12,7 +12,7 @@ sys.path[1:1] = [os.path.normpath(os.path.join(
 #@mr_include_dirs
 from measurement.scheme import LinearMeasurementScheme
 from models.signal_model import ProbabilisticSignalModel, FuzzySignalModel, coordinated_fuzzy_model
-from reduction.reduction import ProbabilisticLinearReduction, FuzzyLinearReduction
+from reduction.reduction import ProbabilisticLinearReduction, FuzzyLinearReduction, LinearRegularization
 from signals.example_signals import fos_eigenvector
 from sensors.first_order_sensor import first_order_sensor
 from utils.linalg_utils import projection_operator
@@ -65,9 +65,32 @@ def fuzzy_quality():
         reduction.compute()
         print reduction.error.value
 
+def regularization_quality():
+    DIMENSIONS = 4
+    signal_expectation = fos_eigenvector(1, DIMENSIONS)
+    signal_model = ProbabilisticSignalModel(expectation=signal_expectation)
+
+    NOISE_STD = 10.0
+    noise_cov_matrix = NOISE_STD * np.eye(DIMENSIONS)
+    noise_model = ProbabilisticSignalModel(
+        expectation=np.zeros(signal_expectation.shape),
+        cov_matrix=noise_cov_matrix)
+
+    alpha = 0.1
+    beta = 0.2
+    operator = first_order_sensor(alpha, beta, DIMENSIONS)
+    probabilistic_scheme = LinearMeasurementScheme(operator, signal_model, noise_model)
+    probabilistic_scheme.measure()
+
+    ideal_operator = projection_operator(signal_expectation) / DIMENSIONS
+    reduction = LinearRegularization(probabilistic_scheme, ideal_operator)
+    reduction.compute()
+    print reduction.error.value
+
 def main():
     probabilistic_quality()
-    fuzzy_quality()
+#    fuzzy_quality()
+    regularization_quality()
 
 if __name__ == "__main__":
     main()
